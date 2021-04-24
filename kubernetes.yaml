@@ -1,0 +1,87 @@
+---
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: api-asg-aws
+    data:
+---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app: api-asg-aws
+      name: api-asg-aws
+    spec:
+      revisionHistoryLimit: 2
+      replicas: 1
+      strategy:
+        type: RollingUpdate
+        rollingUpdate:
+          maxUnavailable: 25%
+          maxSurge: 50%
+      selector:
+        matchLabels:
+          app: api-asg-aws
+      template:
+        metadata:
+          labels:
+            app: api-asg-aws
+        spec:
+          containers:
+          - image: <images>
+            imagePullPolicy: Always
+            name: api-asg-aws
+            ports:
+            - containerPort: 5000
+              protocol: TCP
+            env:
+                - name: AWS_ACCESS_KEY_ID
+                  value: "<>"
+                - name: AWS_SECRET_ACCESS_KEY
+                  value: "<>"
+                - name: AWS_DEFAULT_REGION
+                  value: "<>"
+            resources:
+              requests:
+                cpu: 10m
+                memory: 100Mi
+              limits:
+                cpu: 100m
+                memory: 200Mi
+            lifecycle: # Needed for no-downtime deployments with IngressController
+              preStop:
+                exec:
+                  command: ["/bin/sleep", "5"]
+            volumeMounts:
+            - mountPath: /etc/localtime
+              name: localtime
+            - mountPath: /app/build
+              name: logs
+          imagePullSecrets:
+          - name: regsecret
+          dnsPolicy: ClusterFirst
+          restartPolicy: Always
+          securityContext: {}
+          terminationGracePeriodSeconds: 3600  
+          imagePullSecrets:
+          - name: regsecret
+          dnsPolicy: ClusterFirst
+          restartPolicy: Always
+          securityContext: {}
+---
+    apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app: api-asg-aws
+      name: api-asg-aws
+    spec:
+      clusterIP: None
+      ports:
+      - port: 5000
+        protocol: TCP
+        targetPort: 5000
+      selector:
+        app: api-asg-aws
+      sessionAffinity: None
+    
